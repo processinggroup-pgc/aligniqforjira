@@ -1,0 +1,67 @@
+modules:
+  jira:issuePanel:
+    - key: planforge-dependencies-issue-panel
+      resource: main
+      render: native
+      title: AlignIQ dependencies
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  jira:adminPage:
+    - key: planforge-settings-admin-page
+      resource: admin
+      resolver:
+        function: resolver
+      render: native
+      title: AlignIQ settings
+  trigger:
+    - key: planforge-issue-link-sync-trigger
+      function: issue-link-sync
+      events:
+        - avi:jira:created:issuelink
+        - avi:jira:deleted:issuelink
+        - avi:jira:updated:issue
+  scheduledTrigger:
+    - key: planforge-command-dispatch
+      function: command-dispatch
+      interval: fiveMinute
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: issue-link-sync
+      handler: sync.run
+    - key: command-dispatch
+      handler: reconcile.run
+      timeoutSeconds: 120
+resources:
+  - key: main
+    path: src/frontend/index.jsx
+  - key: admin
+    path: src/admin/index.jsx
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:board-scope:jira-software
+    - read:project:jira
+    - read:sprint:jira-software
+    - read:issue-details:jira
+    - read:jql:jira
+    - storage:app
+  external:
+    fetch:
+      backend:
+        - remote: planforge-api
+remotes:
+  - key: planforge-api
+    baseUrl: https://planforge-velopde.vercel.app
+    operations:
+      - storage
+    storage:
+      inScopeEUD: true
+app:
+  licensing:
+    enabled: true
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/21b7d22a-2de6-4b9e-96b5-8a08a5e7f9b7

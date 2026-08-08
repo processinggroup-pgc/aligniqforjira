@@ -1,0 +1,26 @@
+# AlignIQ for Jira
+
+The AlignIQ Forge app keeps Jira as the system of record while providing delivery leaders with a multi-team planning and forecasting workspace.
+
+## Jira capabilities
+
+- Native issue panel to view and create `Blocks` relationships
+- Jira administrator connection and one-time token handshake
+- Multiple Jira Software board import with explicit AlignIQ team mapping
+- Issue-link and issue-update events sent to the client-isolated AlignIQ API
+- Recoverable command queue for links created or removed from AlignIQ
+- Five-minute reconciliation for tracked Jira issues
+- Marketplace license context sent during the authenticated handshake
+
+## Verification and deployment
+
+Run Forge commands from this directory. Validate before deployment:
+
+```text
+forge lint
+forge deploy --non-interactive --e development
+```
+
+Install or upgrade the development app only after the corresponding AlignIQ database migration and web deployment are available.
+
+The production remote is restricted to `https://planforge-velopde.vercel.app`. Connection tokens are stored with Forge secret storage and are never returned to the UI.
