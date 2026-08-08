@@ -35,6 +35,9 @@ jobs:
       - name: Install Forge CLI
         run: npm install --global @forge/cli@13.0.0
 
+      - name: Configure Forge CLI
+        run: forge settings set usage-analytics false
+
       - name: Lint application source
         run: npm run lint
 
@@ -66,6 +69,9 @@ jobs:
 
       - name: Install Forge CLI
         run: npm install --global @forge/cli@13.0.0
+
+      - name: Configure Forge CLI
+        run: forge settings set usage-analytics false
 
       - name: Report missing deployment credentials
         if: env.FORGE_EMAIL == '' || env.FORGE_API_TOKEN == ''
