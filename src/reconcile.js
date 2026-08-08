@@ -5,6 +5,8 @@ import { jiraIssue } from './sync';
 const CONFIG_KEY = 'planforge-connection';
 const TOKEN_KEY = 'planforge-connection-token';
 const LICENSE_REFRESH_MS = 60 * 60 * 1000;
+const ALIGNIQ_ORIGIN = 'https://aligniq-velopde.vercel.app';
+const LEGACY_PLANFORGE_ORIGIN = 'https://planforge-velopde.vercel.app';
 
 const remoteRequest = async (connection, token, path, options = {}) => {
   const response = await fetch(`${connection.baseUrl}${path}`, {
@@ -171,6 +173,15 @@ const reconcileIssue = async (connection, token, issueKey) => {
 export const run = async () => {
   let connection = await kvs.get(CONFIG_KEY);
   const token = await kvs.getSecret(TOKEN_KEY);
+
+  /*
+   * The scheduled dispatcher provides a zero-touch migration path even on a
+   * quiet Jira site where no issue event or settings-page visit occurs.
+   */
+  if (connection?.baseUrl === LEGACY_PLANFORGE_ORIGIN) {
+    connection = { ...connection, baseUrl: ALIGNIQ_ORIGIN };
+    await kvs.set(CONFIG_KEY, connection);
+  }
   if (!connection || !token || connection.status !== 'connected') return;
 
   try {

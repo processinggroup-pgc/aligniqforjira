@@ -4,6 +4,8 @@ import { kvs } from '@forge/kvs';
 const CONFIG_KEY = 'planforge-connection';
 const TOKEN_KEY = 'planforge-connection-token';
 const FIELD_CONFIG_KEY = 'planforge-jira-fields';
+const ALIGNIQ_ORIGIN = 'https://aligniq-velopde.vercel.app';
+const LEGACY_PLANFORGE_ORIGIN = 'https://planforge-velopde.vercel.app';
 
 const discoverPlanningFields = async () => {
   const cached = await kvs.get(FIELD_CONFIG_KEY);
@@ -64,8 +66,18 @@ const updateLocalConnection = async (connection, patch) => {
 };
 
 export const run = async (event) => {
-  const connection = await kvs.get(CONFIG_KEY);
+  let connection = await kvs.get(CONFIG_KEY);
   const token = await kvs.getSecret(TOKEN_KEY);
+
+  /*
+   * Existing installations should not need an administrator to revisit the
+   * settings screen after the product-domain migration. The first ordinary
+   * Jira event upgrades the stored destination before sending any data.
+   */
+  if (connection?.baseUrl === LEGACY_PLANFORGE_ORIGIN) {
+    connection = { ...connection, baseUrl: ALIGNIQ_ORIGIN };
+    await kvs.set(CONFIG_KEY, connection);
+  }
 
   // Jira-only mode is intentionally useful without a AlignIQ connection.
   if (!connection || !token || connection.status !== 'connected') {
