@@ -4,6 +4,7 @@ import { jiraIssue } from './sync';
 
 const CONFIG_KEY = 'planforge-connection';
 const TOKEN_KEY = 'planforge-connection-token';
+const LICENSE_REFRESH_MS = 60 * 60 * 1000;
 
 const remoteRequest = async (connection, token, path, options = {}) => {
   const response = await fetch(`${connection.baseUrl}${path}`, {
@@ -26,6 +27,45 @@ const remoteRequest = async (connection, token, path, options = {}) => {
     throw new Error(message);
   }
   return response;
+};
+
+const refreshLicense = async (connection, token) => {
+  const lastVerified = Date.parse(connection.lastLicenseVerifiedAt || '');
+  if (Number.isFinite(lastVerified) && Date.now() - lastVerified < LICENSE_REFRESH_MS) return connection;
+
+  const response = await api.asApp().requestAtlassian('/forge/app/v1/license', {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (response.status === 429) {
+    console.warn('Atlassian license refresh was rate limited; the cached entitlement remains in effect.');
+    return connection;
+  }
+  if (!response.ok) throw new Error(`Atlassian license refresh failed (${response.status}).`);
+
+  const body = await response.json();
+  const remoteLicense = body.results?.[0]?.data || {};
+  const developmentLicense = String(connection.license?.type || '').toLowerCase().includes('development');
+  const license = Object.keys(remoteLicense).length
+    ? remoteLicense
+    : developmentLicense
+      ? connection.license
+      : { active: false, type: 'unlicensed', capabilitySet: 'standard' };
+  const verifiedAt = new Date().toISOString();
+  await remoteRequest(connection, token, '/api/integrations/jira/handshake', {
+    method: 'POST',
+    body: JSON.stringify({
+      clientId: connection.clientId,
+      siteUrl: connection.siteUrl,
+      cloudId: connection.cloudId,
+      installationAri: connection.installationAri,
+      forgeEnvironmentId: connection.environmentId,
+      license,
+    }),
+  });
+  const next = { ...connection, license, lastLicenseVerifiedAt: verifiedAt };
+  await kvs.set(CONFIG_KEY, next);
+  return next;
 };
 
 const jiraError = async (response) => {
@@ -129,9 +169,15 @@ const reconcileIssue = async (connection, token, issueKey) => {
 };
 
 export const run = async () => {
-  const connection = await kvs.get(CONFIG_KEY);
+  let connection = await kvs.get(CONFIG_KEY);
   const token = await kvs.getSecret(TOKEN_KEY);
   if (!connection || !token || connection.status !== 'connected') return;
+
+  try {
+    connection = await refreshLicense(connection, token);
+  } catch (error) {
+    console.warn('AlignIQ license refresh did not complete; the last verified entitlement remains in effect.', error);
+  }
 
   const response = await remoteRequest(
     connection,
