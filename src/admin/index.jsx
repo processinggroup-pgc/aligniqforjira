@@ -15,7 +15,7 @@ import ForgeReconciler, {
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
 
-const DEFAULT_PLANFORGE_URL = 'https://planforge-velopde.vercel.app';
+const DEFAULT_PLANFORGE_URL = 'https://aligniq-velopde.vercel.app';
 const { useEffect, useState } = React;
 
 const Settings = () => {

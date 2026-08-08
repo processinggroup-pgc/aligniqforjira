@@ -23,7 +23,7 @@ forge deploy --non-interactive --e development
 
 Install or upgrade the development app only after the corresponding AlignIQ database migration and web deployment are available.
 
-The production remote is restricted to `https://planforge-velopde.vercel.app`. Connection tokens are stored with Forge secret storage and are never returned to the UI.
+The production remote is restricted to `https://aligniq-velopde.vercel.app`. The former PlanForge endpoint remains temporarily allow-listed only for a zero-downtime migration. Connection tokens are stored with Forge secret storage and are never returned to the UI.
 
 ## GitHub deployment
 

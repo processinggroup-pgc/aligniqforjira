@@ -15,6 +15,6 @@ The configuration screen is a `jira:adminPage` and verifies Jira `ADMINISTER` pe
 
 ## External egress
 
-Forge sends tenant-scoped planning events and commands only to `https://planforge-velopde.vercel.app`, the production AlignIQ service. The request uses the client ID and an encrypted per-installation bearer token. No general internet egress is declared.
+Forge sends tenant-scoped planning events and commands to `https://aligniq-velopde.vercel.app`, the production AlignIQ service. The former `https://planforge-velopde.vercel.app` endpoint is temporarily allow-listed for migration only. The request uses the client ID and an encrypted per-installation bearer token. No general internet egress is declared.
 
 Before Marketplace submission, replace the legacy host label with the final AlignIQ domain in the manifest and this document.

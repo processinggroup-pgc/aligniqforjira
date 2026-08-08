@@ -23,10 +23,10 @@ AlignIQ is not a product roadmapping, employee productivity, time-tracking, or i
 
 ## Links for submission
 
-- Support: `https://planforge-velopde.vercel.app/support`
-- Privacy: `https://planforge-velopde.vercel.app/privacy`
-- Terms: `https://planforge-velopde.vercel.app/terms`
-- Trust: `https://planforge-velopde.vercel.app/trust`
-- Status: `https://planforge-velopde.vercel.app/status`
+- Support: `https://aligniq-velopde.vercel.app/support`
+- Privacy: `https://aligniq-velopde.vercel.app/privacy`
+- Terms: `https://aligniq-velopde.vercel.app/terms`
+- Trust: `https://aligniq-velopde.vercel.app/trust`
+- Status: `https://aligniq-velopde.vercel.app/status`
 
 Replace these URLs with the AlignIQ custom domain before public launch.

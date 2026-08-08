@@ -5,7 +5,8 @@ import { kvs } from '@forge/kvs';
 const resolver = new Resolver();
 const CONFIG_KEY = 'planforge-connection';
 const TOKEN_KEY = 'planforge-connection-token';
-const ALLOWED_PLANFORGE_ORIGIN = 'https://planforge-velopde.vercel.app';
+const ALIGNIQ_ORIGIN = 'https://aligniq-velopde.vercel.app';
+const LEGACY_PLANFORGE_ORIGIN = 'https://planforge-velopde.vercel.app';
 
 const publicConnection = (connection) => {
   if (!connection) {
@@ -38,11 +39,19 @@ const normalizedAlignIQUrl = (value) => {
     throw new Error('Enter a valid AlignIQ URL.');
   }
 
-  if (parsed.origin !== ALLOWED_PLANFORGE_ORIGIN) {
-    throw new Error(`Use the production AlignIQ URL: ${ALLOWED_PLANFORGE_ORIGIN}`);
+  if (![ALIGNIQ_ORIGIN, LEGACY_PLANFORGE_ORIGIN].includes(parsed.origin)) {
+    throw new Error(`Use the production AlignIQ URL: ${ALIGNIQ_ORIGIN}`);
   }
 
-  return parsed.origin;
+  // Connections saved under the former PlanForge domain are upgraded in place.
+  return parsed.origin === LEGACY_PLANFORGE_ORIGIN ? ALIGNIQ_ORIGIN : parsed.origin;
+};
+
+const migrateConnectionOrigin = async (connection) => {
+  if (connection?.baseUrl !== LEGACY_PLANFORGE_ORIGIN) return connection;
+  const migrated = { ...connection, baseUrl: ALIGNIQ_ORIGIN };
+  await kvs.set(CONFIG_KEY, migrated);
+  return migrated;
 };
 
 const jiraSiteDetails = async (request) => {
@@ -111,7 +120,7 @@ const requireJiraAdmin = async () => {
 
 resolver.define('getConnection', async (request) => {
   await requireJiraAdmin();
-  let connection = await kvs.get(CONFIG_KEY);
+  let connection = await migrateConnectionOrigin(await kvs.get(CONFIG_KEY));
   const token = await kvs.getSecret(TOKEN_KEY);
   if (connection && token && connection.status === 'connected' && request.context.environmentId && connection.environmentId !== request.context.environmentId) {
     connection = { ...connection, environmentId: request.context.environmentId };

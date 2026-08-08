@@ -49,9 +49,16 @@ permissions:
   external:
     fetch:
       backend:
-        - remote: planforge-api
+        - remote: aligniq-api
+        - remote: planforge-api-legacy
 remotes:
-  - key: planforge-api
+  - key: aligniq-api
+    baseUrl: https://aligniq-velopde.vercel.app
+    operations:
+      - storage
+    storage:
+      inScopeEUD: true
+  - key: planforge-api-legacy
     baseUrl: https://planforge-velopde.vercel.app
     operations:
       - storage
