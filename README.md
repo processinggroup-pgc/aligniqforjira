@@ -27,7 +27,7 @@ The production remote is restricted to `https://planforge-velopde.vercel.app`. C
 
 ## GitHub deployment
 
-Every pull request and push to `main` runs source linting and `forge lint`. A successful push to `main` also deploys the development environment when these encrypted GitHub environment secrets are configured under the `development` environment:
+Every pull request and push to `main` runs source linting. Authenticated `forge lint` validation and development deployment also run when these encrypted GitHub repository secrets are configured:
 
 - `FORGE_EMAIL`: the email address associated with the Atlassian developer account
 - `FORGE_API_TOKEN`: an active Atlassian API scoped token authorized for Forge

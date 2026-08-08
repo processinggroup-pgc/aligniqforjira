@@ -19,6 +19,9 @@ jobs:
     name: Validate Forge app
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+      FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -33,7 +36,7 @@ jobs:
         run: npm ci
 
       - name: Install Forge CLI
-        run: npm install --global @forge/cli@13.0.0
+        run: npm install --global @forge/cli@13.3.0
 
       - name: Configure Forge CLI
         run: forge settings set usage-analytics false
@@ -41,7 +44,12 @@ jobs:
       - name: Lint application source
         run: npm run lint
 
+      - name: Report unavailable Forge validation credentials
+        if: env.FORGE_EMAIL == '' || env.FORGE_API_TOKEN == ''
+        run: echo "Forge manifest validation skipped. Add FORGE_EMAIL and FORGE_API_TOKEN as repository secrets."
+
       - name: Validate Forge manifest and permissions
+        if: env.FORGE_EMAIL != '' && env.FORGE_API_TOKEN != ''
         run: forge lint
 
   deploy-development:
@@ -68,14 +76,14 @@ jobs:
         run: npm ci
 
       - name: Install Forge CLI
-        run: npm install --global @forge/cli@13.0.0
+        run: npm install --global @forge/cli@13.3.0
 
       - name: Configure Forge CLI
         run: forge settings set usage-analytics false
 
       - name: Report missing deployment credentials
         if: env.FORGE_EMAIL == '' || env.FORGE_API_TOKEN == ''
-        run: echo "Forge deployment skipped. Add FORGE_EMAIL and FORGE_API_TOKEN as development environment secrets."
+        run: echo "Forge deployment skipped. Add FORGE_EMAIL and FORGE_API_TOKEN as repository secrets."
 
       - name: Deploy to Forge development
         if: env.FORGE_EMAIL != '' && env.FORGE_API_TOKEN != ''
