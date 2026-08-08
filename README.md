@@ -24,3 +24,12 @@ forge deploy --non-interactive --e development
 Install or upgrade the development app only after the corresponding AlignIQ database migration and web deployment are available.
 
 The production remote is restricted to `https://planforge-velopde.vercel.app`. Connection tokens are stored with Forge secret storage and are never returned to the UI.
+
+## GitHub deployment
+
+Every pull request and push to `main` runs source linting and `forge lint`. A successful push to `main` also deploys the development environment when these encrypted GitHub environment secrets are configured under the `development` environment:
+
+- `FORGE_EMAIL`: the email address associated with the Atlassian developer account
+- `FORGE_API_TOKEN`: an active Atlassian API scoped token authorized for Forge
+
+Production promotion remains manual until Marketplace release controls are established.

@@ -1,0 +1,76 @@
+name: Forge CI/CD
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Forge app
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Forge CLI
+        run: npm install --global @forge/cli@13.0.0
+
+      - name: Lint application source
+        run: npm run lint
+
+      - name: Validate Forge manifest and permissions
+        run: forge lint
+
+  deploy-development:
+    name: Deploy development
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: development
+    env:
+      FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+      FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Forge CLI
+        run: npm install --global @forge/cli@13.0.0
+
+      - name: Report missing deployment credentials
+        if: env.FORGE_EMAIL == '' || env.FORGE_API_TOKEN == ''
+        run: echo "Forge deployment skipped. Add FORGE_EMAIL and FORGE_API_TOKEN as development environment secrets."
+
+      - name: Deploy to Forge development
+        if: env.FORGE_EMAIL != '' && env.FORGE_API_TOKEN != ''
+        run: forge deploy --non-interactive --environment development
