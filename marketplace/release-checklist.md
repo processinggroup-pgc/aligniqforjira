@@ -7,6 +7,7 @@
 - [x] Verify a successful production retention execution (`2026-08-11T18:28:24.02496Z`); confirm `/api/health` reports it current after deployment.
 - [ ] Confirm Supabase backups and complete the first isolated restore drill.
 - [x] Complete Forge lint with the current CLI; do not use `--no-verify`.
+- [x] Deploy Forge release `64297df` to development and verify the connected UAT entitlement refresh.
 - [x] Resolve or formally accept every remaining production dependency advisory.
 - [x] Run automated web regression and Forge contract tests on the candidate commits.
 - [ ] Complete Jira sandbox install/upgrade/uninstall and the manual tenant-isolation matrix.
