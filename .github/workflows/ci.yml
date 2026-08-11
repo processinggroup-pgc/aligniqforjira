@@ -6,6 +6,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      sandbox_lifecycle:
+        description: Exercise upgrade, uninstall, reinstall, and 30-minute log retrieval on the Jira UAT sandbox
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -91,3 +97,47 @@ jobs:
       - name: Deploy to Forge development
         if: env.FORGE_EMAIL != '' && env.FORGE_API_TOKEN != ''
         run: forge deploy --non-interactive --environment development
+
+  sandbox-lifecycle:
+    name: Exercise Jira sandbox lifecycle
+    needs: deploy-development
+    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_lifecycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: development
+    env:
+      FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+      FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+      UAT_JIRA_SITE: mylifecoachrebecca.atlassian.net
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: Install dependencies and pinned Forge CLI
+        run: |
+          npm ci
+          npm install --global @forge/cli@13.3.0
+          forge settings set usage-analytics false
+
+      - name: Upgrade the existing development installation
+        run: forge install --non-interactive --confirm-scopes --upgrade all --site "$UAT_JIRA_SITE" --product Jira --environment development
+
+      - name: Record upgraded installation
+        run: forge install list --json
+
+      - name: Uninstall from the designated sandbox
+        run: printf 'y\n' | forge uninstall --site "$UAT_JIRA_SITE" --product Jira --environment development
+
+      - name: Reinstall on the designated sandbox
+        run: forge install --non-interactive --confirm-scopes --site "$UAT_JIRA_SITE" --product Jira --environment development
+
+      - name: Record reinstalled application and recent logs
+        run: |
+          forge install list --json
+          forge logs --environment development --since 30m --limit 500
