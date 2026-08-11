@@ -16,6 +16,7 @@ import ForgeReconciler, {
 import { invoke } from '@forge/bridge';
 
 const DEFAULT_PLANFORGE_URL = 'https://aligniq-velopde.vercel.app';
+const LEGAL_MARK = `© ${new Date().getFullYear()} AlignIQ™. All rights reserved.`;
 const { useEffect, useState } = React;
 
 const Settings = () => {
@@ -181,6 +182,9 @@ const Settings = () => {
         </SectionMessage>
       ) : null}
       {connection?.connected ? <Stack space="space.150"><Heading size="medium">Planning boards</Heading><Text>Add each Jira Software board that should feed AlignIQ. Assign the delivery-team name people expect to see on the program board.</Text><Select inputId="planforge-board" value={board} options={boards.map((row)=>({label:`${row.name}${row.location?` · ${row.location}`:''}`,value:row.id}))} onChange={(option)=>{setBoard(option);if(option&&!teamName)setTeamName(option.label.split(' · ')[0])}} placeholder="Choose a Jira board"/><Label labelFor="planforge-team-name">AlignIQ team name</Label><Textfield id="planforge-team-name" value={teamName} onChange={(event)=>setTeamName(event.target.value)} placeholder="Platform team"/><Inline space="space.100"><Button appearance="primary" isDisabled={!board||!teamName.trim()||isImporting} onClick={importBoard}>{isImporting?'Importing…':'Add board and import'}</Button><Button isDisabled={isImporting} onClick={loadBoards}>Refresh boards</Button></Inline>{connection.boards?.length?<Stack space="space.100"><Heading size="small">Connected boards</Heading>{connection.boards.map((connected)=><Inline key={connected.id} alignBlock="center" spread="space-between"><Text>{connected.name} → {connected.teamName}</Text><Button appearance="subtle" onClick={()=>invoke('removeBoard',{boardId:connected.id}).then(setConnection).catch((removeError)=>setError(removeError.message||'Board could not be removed.'))}>Remove</Button></Inline>)}</Stack>:<Text>No planning boards selected yet.</Text>}</Stack>:null}
+      <Inline alignInline="end">
+        <Text>{LEGAL_MARK}</Text>
+      </Inline>
     </Stack>
   );
 };
