@@ -35,7 +35,9 @@ const refreshLicense = async (connection, token) => {
   const lastVerified = Date.parse(connection.lastLicenseVerifiedAt || '');
   if (Number.isFinite(lastVerified) && Date.now() - lastVerified < LICENSE_REFRESH_MS) return connection;
 
-  const response = await api.asApp().requestAtlassian('/forge/app/v1/license', {
+  // Forge requires every Atlassian-relative URL to be created with `route` so
+  // the SDK can validate the path before sending the request.
+  const response = await api.asApp().requestAtlassian(route`/forge/app/v1/license`, {
     method: 'GET',
     headers: { Accept: 'application/json' },
   });

@@ -9,6 +9,7 @@ test('declares the minimum Jira and remote integration controls', async () => {
   assert.match(manifest, /jira:adminPage:/);
   assert.doesNotMatch(manifest, /jira:globalPage:/);
   assert.match(manifest, /licensing:\s*\n\s*enabled: true/);
+  assert.match(manifest, /baseUrl: https:\/\/aligniq-velopde\.vercel\.app/);
   assert.match(manifest, /baseUrl: https:\/\/planforge-velopde\.vercel\.app/);
   assert.match(resolver, /requireJiraAdmin/);
   assert.match(resolver, /kvs\.setSecret\(TOKEN_KEY, token\)/);
@@ -16,7 +17,7 @@ test('declares the minimum Jira and remote integration controls', async () => {
 
 test('refreshes cached Marketplace licensing and dispatches idempotent Jira commands', async () => {
   const reconcile = await source('src/reconcile.js');
-  assert.match(reconcile, /requestAtlassian\('\/forge\/app\/v1\/license'/);
+  assert.match(reconcile, /requestAtlassian\(route`\/forge\/app\/v1\/license`/);
   assert.match(reconcile, /LICENSE_REFRESH_MS/);
   assert.match(reconcile, /response\.status === 429/);
   assert.match(reconcile, /if \(!response\.ok && response\.status !== 404\)/);
