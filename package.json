@@ -1,7 +1,7 @@
 {
   "name": "aligniq-for-jira",
   "version": "1.1.46",
-  "main": "src/index.js",
+  "main": "index.js",
   "license": "MIT",
   "private": true,
   "scripts": {
