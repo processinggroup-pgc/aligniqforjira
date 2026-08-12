@@ -6,6 +6,7 @@ const resolver = new Resolver();
 const CONFIG_KEY = 'planforge-connection';
 const TOKEN_KEY = 'planforge-connection-token';
 const ALIGNIQ_ORIGIN = 'https://aligniq-velopde.vercel.app';
+const ALIGNIQ_PUBLIC_ORIGIN = 'https://aligniq-eta.vercel.app';
 const LEGACY_PLANFORGE_ORIGIN = 'https://planforge-velopde.vercel.app';
 
 const publicConnection = (connection) => {
@@ -39,12 +40,12 @@ const normalizedAlignIQUrl = (value) => {
     throw new Error('Enter a valid AlignIQ URL.');
   }
 
-  if (![ALIGNIQ_ORIGIN, LEGACY_PLANFORGE_ORIGIN].includes(parsed.origin)) {
+  if (![ALIGNIQ_ORIGIN, ALIGNIQ_PUBLIC_ORIGIN, LEGACY_PLANFORGE_ORIGIN].includes(parsed.origin)) {
     throw new Error(`Use the production AlignIQ URL: ${ALIGNIQ_ORIGIN}`);
   }
 
   // Connections saved under the former PlanForge domain are upgraded in place.
-  return parsed.origin === LEGACY_PLANFORGE_ORIGIN ? ALIGNIQ_ORIGIN : parsed.origin;
+  return parsed.origin === ALIGNIQ_ORIGIN ? parsed.origin : ALIGNIQ_ORIGIN;
 };
 
 const migrateConnectionOrigin = async (connection) => {
@@ -125,10 +126,12 @@ resolver.define('getConnection', async (request) => {
   if (connection && token && connection.status === 'connected' && !connection.instantSyncUrl) {
     const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync');
     connection = { ...connection, instantSyncUrl };
-    await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
+    const registration = await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
       method: 'POST',
       body: JSON.stringify({ clientId: connection.clientId, siteUrl: connection.siteUrl, cloudId: connection.cloudId, installationAri: connection.installationAri, forgeEnvironmentId: connection.environmentId, instantSyncUrl, license: connection.license }),
     });
+    const registered = await registration.json();
+    connection = { ...connection, clientId: registered.clientId || connection.clientId };
     await kvs.set(CONFIG_KEY, connection);
   }
   if (connection && token && connection.status === 'connected' && request.context.environmentId && connection.environmentId !== request.context.environmentId) {
@@ -157,7 +160,7 @@ resolver.define('saveConnection', async (request) => {
 
   const site = await jiraSiteDetails(request);
   const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync');
-  await planForgeRequest(baseUrl, '/api/integrations/jira/handshake', clientId, token, {
+  const handshake = await planForgeRequest(baseUrl, '/api/integrations/jira/handshake', clientId, token, {
     method: 'POST',
     body: JSON.stringify({
       clientId,
@@ -169,6 +172,7 @@ resolver.define('saveConnection', async (request) => {
       license: site.license,
     }),
   });
+  const connected = await handshake.json();
 
   /*
    * The raw token is stored only after the remote handshake succeeds. KVS
@@ -178,7 +182,7 @@ resolver.define('saveConnection', async (request) => {
   await kvs.setSecret(TOKEN_KEY, token);
   const connection = {
     baseUrl,
-    clientId,
+    clientId: connected.clientId || clientId,
     ...site,
     instantSyncUrl,
     status: 'connected',
