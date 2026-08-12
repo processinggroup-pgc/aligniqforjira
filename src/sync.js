@@ -7,7 +7,7 @@ const FIELD_CONFIG_KEY = 'planforge-jira-fields';
 const ALIGNIQ_ORIGIN = 'https://aligniq-velopde.vercel.app';
 const LEGACY_PLANFORGE_ORIGIN = 'https://planforge-velopde.vercel.app';
 
-const discoverPlanningFields = async () => {
+export const discoverPlanningFields = async () => {
   const cached = await kvs.get(FIELD_CONFIG_KEY);
   if (cached) return cached;
   const response = await api.asApp().requestJira(route`/rest/api/3/field`, {
@@ -53,6 +53,7 @@ export const jiraIssue = async (issueId) => {
     status: issue.fields?.status?.name || 'Unknown',
     statusCategory: issue.fields?.status?.statusCategory?.key || 'new',
     assignee: issue.fields?.assignee?.displayName || 'Unassigned',
+    assigneeAccountId: issue.fields?.assignee?.accountId || null,
     projectKey: issue.fields?.project?.key || null,
     projectName: issue.fields?.project?.name || null,
     storyPoints: planningFields.storyPoints && Number.isFinite(Number(issue.fields?.[planningFields.storyPoints])) ? Number(issue.fields[planningFields.storyPoints]) : null,

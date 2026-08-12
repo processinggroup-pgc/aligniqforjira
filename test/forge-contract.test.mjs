@@ -13,6 +13,9 @@ test('declares the minimum Jira and remote integration controls', async () => {
   assert.match(manifest, /baseUrl: https:\/\/planforge-velopde\.vercel\.app/);
   assert.match(resolver, /requireJiraAdmin/);
   assert.match(resolver, /kvs\.setSecret\(TOKEN_KEY, token\)/);
+  assert.match(manifest, /- read:jira-user/);
+  assert.match(resolver, /user\/assignable\/multiProjectSearch/);
+  assert.match(resolver, /assigneeAccountId/);
 });
 
 test('refreshes cached Marketplace licensing and dispatches idempotent Jira commands', async () => {
@@ -22,4 +25,8 @@ test('refreshes cached Marketplace licensing and dispatches idempotent Jira comm
   assert.match(reconcile, /response\.status === 429/);
   assert.match(reconcile, /if \(!response\.ok && response\.status !== 404\)/);
   assert.match(reconcile, /Unsupported AlignIQ command/);
+  assert.match(reconcile, /command\.command_type === 'update_issue'/);
+  assert.match(reconcile, /issue\/\$\{issueKey\}\/assignee/);
+  assert.match(reconcile, /discoverPlanningFields/);
+  assert.match(reconcile, /reconcileIssue\(connection, token, issueKey\)/);
 });

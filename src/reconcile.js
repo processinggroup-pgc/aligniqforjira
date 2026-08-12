@@ -1,6 +1,6 @@
 import api, { fetch, route } from '@forge/api';
 import { kvs } from '@forge/kvs';
-import { jiraIssue } from './sync';
+import { discoverPlanningFields, jiraIssue } from './sync';
 
 const CONFIG_KEY = 'planforge-connection';
 const TOKEN_KEY = 'planforge-connection-token';
@@ -150,6 +150,43 @@ const deleteLink = async (payload) => {
   return jiraLinkId;
 };
 
+const updateIssue = async (payload) => {
+  const issueKey = String(payload.issueKey || '').trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9_]*-\d+$/.test(issueKey)) throw new Error('The AlignIQ update does not contain a valid Jira issue key.');
+  const fields = {};
+  if (Object.hasOwn(payload, 'summary')) {
+    const summary = String(payload.summary || '').trim();
+    if (!summary) throw new Error('A Jira issue summary cannot be empty.');
+    fields.summary = summary.slice(0, 255);
+  }
+  if (Object.hasOwn(payload, 'storyPoints')) {
+    const planningFields = await discoverPlanningFields();
+    if (!planningFields.storyPoints) throw new Error('This Jira site does not expose an editable story-points field.');
+    const storyPoints = Number(payload.storyPoints);
+    if (!Number.isFinite(storyPoints) || storyPoints < 0) throw new Error('Story points must be zero or greater.');
+    fields[planningFields.storyPoints] = storyPoints;
+  }
+  if (Object.keys(fields).length) {
+    const response = await api.asApp().requestJira(route`/rest/api/3/issue/${issueKey}`, {
+      method: 'PUT',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    });
+    if (!response.ok) throw new Error(await jiraError(response));
+  }
+  if (payload.setAssignee === true) {
+    const accountId = payload.assigneeAccountId === null ? null : String(payload.assigneeAccountId || '').trim();
+    if (accountId !== null && !accountId) throw new Error('The Jira assignee account identifier is invalid.');
+    const response = await api.asApp().requestJira(route`/rest/api/3/issue/${issueKey}/assignee`, {
+      method: 'PUT',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId }),
+    });
+    if (!response.ok) throw new Error(await jiraError(response));
+  }
+  return issueKey;
+};
+
 const acknowledge = async (connection, token, command, result) => {
   await remoteRequest(connection, token, '/api/integrations/jira/commands', {
     method: 'POST',
@@ -202,10 +239,19 @@ export const run = async () => {
   for (const command of commands) {
     try {
       let jiraLinkId = null;
+      let issueKey = null;
       if (command.command_type === 'create_link') jiraLinkId = await createLink(command.payload);
       else if (command.command_type === 'delete_link') jiraLinkId = await deleteLink(command.payload);
+      else if (command.command_type === 'update_issue') issueKey = await updateIssue(command.payload);
       else throw new Error(`Unsupported AlignIQ command: ${command.command_type}`);
       await acknowledge(connection, token, command, { ok: true, jiraLinkId });
+      if (issueKey) {
+        try {
+          await reconcileIssue(connection, token, issueKey);
+        } catch (error) {
+          console.warn('AlignIQ issue update succeeded but immediate reconciliation did not complete.', { issueKey, error });
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown Jira synchronization error';
       console.error('AlignIQ command failed', { commandId: command.id, message });

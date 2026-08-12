@@ -184,6 +184,29 @@ const jiraJson = async (path) => {
   return response.json();
 };
 
+const assignableUsersForProjects = async (projectKeys) => {
+  if (!projectKeys.length) return [];
+  const users = [];
+  const projects = projectKeys.join(',');
+  for (let startAt = 0; startAt < 1000; startAt += 100) {
+    const page = await jiraJson(route`/rest/api/3/user/assignable/multiProjectSearch?projectKeys=${projects}&startAt=${startAt}&maxResults=100`);
+    if (!Array.isArray(page)) break;
+    users.push(...page);
+    if (page.length < 100) break;
+  }
+  const byAccountId = new Map();
+  for (const user of users) {
+    if (!user?.accountId || !user?.displayName || user.accountType === 'app') continue;
+    byAccountId.set(user.accountId, {
+      accountId: user.accountId,
+      displayName: user.displayName,
+      active: user.active !== false,
+      avatarUrl: user.avatarUrls?.['48x48'] || user.avatarUrls?.['32x32'] || null,
+    });
+  }
+  return Array.from(byAccountId.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
+};
+
 resolver.define('listBoards', async () => {
   await requireJiraAdmin();
   const connection = await kvs.get(CONFIG_KEY);
@@ -221,7 +244,9 @@ resolver.define('selectBoard', async (request) => {
   }
   if(boardIssueTotal>allIssues.length)throw new Error(`This board contains ${boardIssueTotal} issues. Narrow its Jira filter to 5,000 issues or fewer before importing.`);
   const sprintName = (value) => { const values = Array.isArray(value) ? value : value ? [value] : []; const sprint = [...values].reverse().find((candidate) => candidate && typeof candidate === 'object'); return sprint?.name || null; };
-  const issues = allIssues.map((issue) => ({ id:String(issue.id),key: issue.key, summary: issue.fields?.summary || issue.key, status: issue.fields?.status?.name || 'Unknown', statusCategory: issue.fields?.status?.statusCategory?.name || null, assignee: issue.fields?.assignee?.displayName || null, projectKey: issue.fields?.project?.key || null, projectName: issue.fields?.project?.name || null, updatedAt: issue.fields?.updated || null, storyPoints: storyPointsField ? issue.fields?.[storyPointsField] ?? null : null, sprint: sprintField ? sprintName(issue.fields?.[sprintField]) : null }));
+  const issues = allIssues.map((issue) => ({ id:String(issue.id),key: issue.key, summary: issue.fields?.summary || issue.key, status: issue.fields?.status?.name || 'Unknown', statusCategory: issue.fields?.status?.statusCategory?.name || null, assignee: issue.fields?.assignee?.displayName || null, assigneeAccountId: issue.fields?.assignee?.accountId || null, projectKey: issue.fields?.project?.key || null, projectName: issue.fields?.project?.name || null, updatedAt: issue.fields?.updated || null, storyPoints: storyPointsField ? issue.fields?.[storyPointsField] ?? null : null, sprint: sprintField ? sprintName(issue.fields?.[sprintField]) : null }));
+  const projectKeys=Array.from(new Set(issues.map((issue)=>issue.projectKey).filter(Boolean)));
+  const users=await assignableUsersForProjects(projectKeys);
   const historyIssues=issues.slice(-1000);
   const issueById=new Map(historyIssues.map((issue)=>[issue.id,issue]));
   const histories=[];
@@ -234,12 +259,12 @@ resolver.define('selectBoard', async (request) => {
     nextPageToken=historyPayload.nextPageToken;if(!nextPageToken||histories.length>=10000)break;
   }
   const syncedAt=new Date().toISOString();
-  await planForgeRequest(connection.baseUrl, '/api/integrations/jira/board', connection.clientId, token, { method: 'POST', body: JSON.stringify({ clientId: connection.clientId, cloudId: connection.cloudId, board: { id: board.id, name: board.name, type: board.type, teamName:teamName||board.name }, issues, histories }) });
+  await planForgeRequest(connection.baseUrl, '/api/integrations/jira/board', connection.clientId, token, { method: 'POST', body: JSON.stringify({ clientId: connection.clientId, cloudId: connection.cloudId, board: { id: board.id, name: board.name, type: board.type, teamName:teamName||board.name }, issues, histories, users }) });
   const existingBoards=connection.boards||[];
   const boards=[...existingBoards.filter((candidate)=>Number(candidate.id)!==board.id),{id:board.id,name:board.name,type:board.type,teamName:teamName||board.name,syncedAt}];
   const next = { ...connection, boardId: board.id, boardName: board.name, boardType: board.type, boardSyncedAt: syncedAt, boards, lastSyncAt: syncedAt, lastError: null };
   await kvs.set(CONFIG_KEY, next);
-  return { connection: publicConnection(next), imported: issues.length, historyEvents:histories.length };
+  return { connection: publicConnection(next), imported: issues.length, assignableUsers:users.length, historyEvents:histories.length };
 });
 
 resolver.define('removeBoard',async(request)=>{
