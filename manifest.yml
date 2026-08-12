@@ -36,7 +36,6 @@ modules:
       timeoutSeconds: 120
     - key: instant-sync
       handler: refresh.run
-      timeoutSeconds: 120
 resources:
   - key: main
     path: src/frontend/index.jsx
