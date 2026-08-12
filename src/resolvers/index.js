@@ -123,7 +123,7 @@ resolver.define('getConnection', async (request) => {
   let connection = await migrateConnectionOrigin(await kvs.get(CONFIG_KEY));
   const token = await kvs.getSecret(TOKEN_KEY);
   if (connection && token && connection.status === 'connected' && !connection.instantSyncUrl) {
-    const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync', true);
+    const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync');
     connection = { ...connection, instantSyncUrl };
     await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
       method: 'POST',
@@ -156,7 +156,7 @@ resolver.define('saveConnection', async (request) => {
   }
 
   const site = await jiraSiteDetails(request);
-  const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync', true);
+  const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync');
   await planForgeRequest(baseUrl, '/api/integrations/jira/handshake', clientId, token, {
     method: 'POST',
     body: JSON.stringify({
