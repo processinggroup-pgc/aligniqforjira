@@ -7,7 +7,8 @@ const source = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8'
 test('declares the minimum Jira and remote integration controls', async () => {
   const [manifest, resolver] = await Promise.all([source('manifest.yml'), source('src/resolvers/index.js')]);
   assert.match(manifest, /jira:adminPage:/);
-  assert.doesNotMatch(manifest, /jira:globalPage:/);
+  assert.match(manifest, /jira:globalPage:/);
+  assert.match(manifest, /key: aligniq-global-page/);
   assert.match(manifest, /licensing:\s*\n\s*enabled: true/);
   assert.match(manifest, /baseUrl: https:\/\/aligniq-velopde\.vercel\.app/);
   assert.match(manifest, /baseUrl: https:\/\/planforge-velopde\.vercel\.app/);

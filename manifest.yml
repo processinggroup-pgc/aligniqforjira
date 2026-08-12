@@ -1,4 +1,11 @@
 modules:
+  jira:globalPage:
+    - key: aligniq-global-page
+      resource: admin
+      resolver:
+        function: resolver
+      render: native
+      title: AlignIQ
   jira:issuePanel:
     - key: planforge-dependencies-issue-panel
       resource: main
