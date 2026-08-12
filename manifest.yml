@@ -23,6 +23,9 @@ modules:
     - key: planforge-command-dispatch
       function: command-dispatch
       interval: fiveMinute
+  webtrigger:
+    - key: planforge-instant-sync
+      function: instant-sync
   function:
     - key: resolver
       handler: index.handler
@@ -30,6 +33,9 @@ modules:
       handler: sync.run
     - key: command-dispatch
       handler: reconcile.run
+      timeoutSeconds: 120
+    - key: instant-sync
+      handler: refresh.run
       timeoutSeconds: 120
 resources:
   - key: main

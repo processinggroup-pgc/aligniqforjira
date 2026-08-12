@@ -1,5 +1,5 @@
 import Resolver from '@forge/resolver';
-import api, { fetch, route } from '@forge/api';
+import api, { fetch, route, webTrigger } from '@forge/api';
 import { kvs } from '@forge/kvs';
 
 const resolver = new Resolver();
@@ -122,6 +122,15 @@ resolver.define('getConnection', async (request) => {
   await requireJiraAdmin();
   let connection = await migrateConnectionOrigin(await kvs.get(CONFIG_KEY));
   const token = await kvs.getSecret(TOKEN_KEY);
+  if (connection && token && connection.status === 'connected' && !connection.instantSyncUrl) {
+    const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync', true);
+    connection = { ...connection, instantSyncUrl };
+    await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
+      method: 'POST',
+      body: JSON.stringify({ clientId: connection.clientId, siteUrl: connection.siteUrl, cloudId: connection.cloudId, installationAri: connection.installationAri, forgeEnvironmentId: connection.environmentId, instantSyncUrl, license: connection.license }),
+    });
+    await kvs.set(CONFIG_KEY, connection);
+  }
   if (connection && token && connection.status === 'connected' && request.context.environmentId && connection.environmentId !== request.context.environmentId) {
     connection = { ...connection, environmentId: request.context.environmentId };
     await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
@@ -147,6 +156,7 @@ resolver.define('saveConnection', async (request) => {
   }
 
   const site = await jiraSiteDetails(request);
+  const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync', true);
   await planForgeRequest(baseUrl, '/api/integrations/jira/handshake', clientId, token, {
     method: 'POST',
     body: JSON.stringify({
@@ -155,6 +165,7 @@ resolver.define('saveConnection', async (request) => {
       cloudId: site.cloudId,
       installationAri: site.installationAri,
       forgeEnvironmentId: site.environmentId,
+      instantSyncUrl,
       license: site.license,
     }),
   });
@@ -169,6 +180,7 @@ resolver.define('saveConnection', async (request) => {
     baseUrl,
     clientId,
     ...site,
+    instantSyncUrl,
     status: 'connected',
     lastSyncAt: new Date().toISOString(),
     lastEventAt: null,
