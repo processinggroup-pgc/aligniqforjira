@@ -249,7 +249,7 @@ resolver.define('selectBoard', async (request) => {
   const normalized = (value) => String(value || '').trim().toLowerCase();
   const storyPointsField = fields.find((field) => ['story points','story point estimate'].includes(normalized(field.name)))?.id;
   const sprintField = fields.find((field) => normalized(field.name) === 'sprint')?.id;
-  const requestedFields = ['summary','status','assignee','project','updated',storyPointsField,sprintField].filter(Boolean).join(',');
+  const requestedFields = ['summary','issuetype','status','assignee','project','updated',storyPointsField,sprintField].filter(Boolean).join(',');
   const allIssues=[];
   let boardIssueTotal=0;
   for(let startAt=0;startAt<5000;startAt+=100){
@@ -260,7 +260,7 @@ resolver.define('selectBoard', async (request) => {
   }
   if(boardIssueTotal>allIssues.length)throw new Error(`This board contains ${boardIssueTotal} issues. Narrow its Jira filter to 5,000 issues or fewer before importing.`);
   const sprintName = (value) => { const values = Array.isArray(value) ? value : value ? [value] : []; const sprint = [...values].reverse().find((candidate) => candidate && typeof candidate === 'object'); return sprint?.name || null; };
-  const issues = allIssues.map((issue) => ({ id:String(issue.id),key: issue.key, summary: issue.fields?.summary || issue.key, status: issue.fields?.status?.name || 'Unknown', statusCategory: issue.fields?.status?.statusCategory?.name || null, assignee: issue.fields?.assignee?.displayName || null, assigneeAccountId: issue.fields?.assignee?.accountId || null, projectKey: issue.fields?.project?.key || null, projectName: issue.fields?.project?.name || null, updatedAt: issue.fields?.updated || null, storyPoints: storyPointsField ? issue.fields?.[storyPointsField] ?? null : null, sprint: sprintField ? sprintName(issue.fields?.[sprintField]) : null }));
+  const issues = allIssues.map((issue) => ({ id:String(issue.id),key: issue.key, summary: issue.fields?.summary || issue.key, issueType: issue.fields?.issuetype?.name || 'Story', status: issue.fields?.status?.name || 'Unknown', statusCategory: issue.fields?.status?.statusCategory?.name || null, assignee: issue.fields?.assignee?.displayName || null, assigneeAccountId: issue.fields?.assignee?.accountId || null, projectKey: issue.fields?.project?.key || null, projectName: issue.fields?.project?.name || null, updatedAt: issue.fields?.updated || null, storyPoints: storyPointsField ? issue.fields?.[storyPointsField] ?? null : null, sprint: sprintField ? sprintName(issue.fields?.[sprintField]) : null }));
   const projectKeys=Array.from(new Set(issues.map((issue)=>issue.projectKey).filter(Boolean)));
   const users=await assignableUsersForProjects(projectKeys);
   const historyIssues=issues.slice(-1000);

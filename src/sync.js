@@ -33,7 +33,7 @@ const sprintName = (value) => {
 
 export const jiraIssue = async (issueId) => {
   const planningFields = await discoverPlanningFields();
-  const requestedFields = ['summary', 'status', 'assignee', 'project', 'updated', planningFields.storyPoints, planningFields.sprint].filter(Boolean).join(',');
+  const requestedFields = ['summary', 'issuetype', 'status', 'assignee', 'project', 'updated', planningFields.storyPoints, planningFields.sprint].filter(Boolean).join(',');
   const response = await api
     .asApp()
     .requestJira(
@@ -50,6 +50,7 @@ export const jiraIssue = async (issueId) => {
     id: issue.id,
     key: issue.key,
     summary: issue.fields?.summary || issue.key,
+    issueType: issue.fields?.issuetype?.name || 'Story',
     status: issue.fields?.status?.name || 'Unknown',
     statusCategory: issue.fields?.status?.statusCategory?.key || 'new',
     assignee: issue.fields?.assignee?.displayName || 'Unassigned',
