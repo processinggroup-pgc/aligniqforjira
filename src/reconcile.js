@@ -49,7 +49,7 @@ const refreshLicense = async (connection, token) => {
 
   const body = await response.json();
   const remoteLicense = body.results?.[0]?.data || {};
-  const developmentLicense = String(connection.license?.type || '').toLowerCase().includes('development');
+  const developmentLicense = String(connection.environmentType || '').toUpperCase() === 'DEVELOPMENT' || String(connection.license?.type || '').toLowerCase().includes('development');
   const license = Object.keys(remoteLicense).length
     ? remoteLicense
     : developmentLicense

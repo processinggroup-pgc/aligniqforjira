@@ -72,12 +72,14 @@ const jiraSiteDetails = async (request) => {
     throw new Error('The Jira installation identifier is unavailable.');
   }
 
+  const development = String(request.context.environmentType || '').toUpperCase() === 'DEVELOPMENT';
   return {
     siteUrl: serverInfo.baseUrl,
     cloudId,
     installationAri,
     environmentId: request.context.environmentId,
-    license: request.context.license || { isActive: true, type: 'DEVELOPMENT', capabilitySet: 'advanced' },
+    environmentType: request.context.environmentType || null,
+    license: development ? { isActive: true, type: 'DEVELOPMENT', capabilitySet: 'advanced' } : request.context.license || { isActive: false, type: 'UNLICENSED', capabilitySet: 'standard' },
   };
 };
 
@@ -123,6 +125,15 @@ resolver.define('getConnection', async (request) => {
   await requireJiraAdmin();
   let connection = await migrateConnectionOrigin(await kvs.get(CONFIG_KEY));
   const token = await kvs.getSecret(TOKEN_KEY);
+  const development = String(request.context.environmentType || '').toUpperCase() === 'DEVELOPMENT';
+  if (connection && token && connection.status === 'connected' && development && !String(connection.license?.type || '').toLowerCase().includes('development')) {
+    connection = { ...connection, environmentType: request.context.environmentType, license: { isActive: true, type: 'DEVELOPMENT', capabilitySet: 'advanced' } };
+    await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
+      method: 'POST',
+      body: JSON.stringify({ clientId: connection.clientId, siteUrl: connection.siteUrl, cloudId: connection.cloudId, installationAri: connection.installationAri, forgeEnvironmentId: connection.environmentId, instantSyncUrl: connection.instantSyncUrl, license: connection.license }),
+    });
+    await kvs.set(CONFIG_KEY, connection);
+  }
   if (connection && token && connection.status === 'connected' && !connection.instantSyncUrl) {
     const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync');
     connection = { ...connection, instantSyncUrl };
