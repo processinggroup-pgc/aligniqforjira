@@ -270,7 +270,16 @@ resolver.define('selectBoard', async (request) => {
     if(!issuePayload.issues?.length||allIssues.length>=Number(issuePayload.total||0))break;
   }
   if(boardIssueTotal>allIssues.length)throw new Error(`This board contains ${boardIssueTotal} issues. Narrow its Jira filter to 5,000 issues or fewer before importing.`);
-  const sprintName = (value) => { const values = Array.isArray(value) ? value : value ? [value] : []; const sprint = [...values].reverse().find((candidate) => candidate && typeof candidate === 'object'); return sprint?.name || null; };
+  const sprintName = (value) => {
+    const values = Array.isArray(value) ? value : value ? [value] : [];
+    // Jira can return every sprint an issue has occupied. Prefer the active
+    // sprint so an older closed sprint cannot become the issue's planned slot
+    // merely because Jira placed it last in the field payload.
+    const sprint = [...values].reverse().find((candidate) => candidate && typeof candidate === 'object' && candidate.state === 'active')
+      || [...values].reverse().find((candidate) => candidate && typeof candidate === 'object' && candidate.state === 'future')
+      || [...values].reverse().find((candidate) => candidate && typeof candidate === 'object');
+    return sprint?.name || null;
+  };
   const issues = allIssues.map((issue) => ({ id:String(issue.id),key: issue.key, summary: issue.fields?.summary || issue.key, issueType: issue.fields?.issuetype?.name || 'Story', status: issue.fields?.status?.name || 'Unknown', statusCategory: issue.fields?.status?.statusCategory?.name || null, assignee: issue.fields?.assignee?.displayName || null, assigneeAccountId: issue.fields?.assignee?.accountId || null, projectKey: issue.fields?.project?.key || null, projectName: issue.fields?.project?.name || null, updatedAt: issue.fields?.updated || null, storyPoints: storyPointsField ? issue.fields?.[storyPointsField] ?? null : null, sprint: sprintField ? sprintName(issue.fields?.[sprintField]) : null }));
   const projectKeys=Array.from(new Set(issues.map((issue)=>issue.projectKey).filter(Boolean)));
   const users=await assignableUsersForProjects(projectKeys);
