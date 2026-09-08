@@ -1,10 +1,12 @@
 import Resolver from '@forge/resolver';
+import { createHash } from 'node:crypto';
 import api, { fetch, route, webTrigger } from '@forge/api';
 import { kvs } from '@forge/kvs';
 
 const resolver = new Resolver();
 const CONFIG_KEY = 'planforge-connection';
 const TOKEN_KEY = 'planforge-connection-token';
+const instantSyncSecret = (token) => createHash('sha256').update(`${token}:aligniq-instant-sync`).digest('hex');
 const ALIGNIQ_ORIGIN = 'https://aligniq-velopde.vercel.app';
 const ALIGNIQ_PUBLIC_ORIGIN = 'https://aligniq-eta.vercel.app';
 const LEGACY_PLANFORGE_ORIGIN = 'https://planforge-velopde.vercel.app';
@@ -130,7 +132,7 @@ resolver.define('getConnection', async (request) => {
     connection = { ...connection, environmentType: request.context.environmentType, license: { isActive: true, type: 'DEVELOPMENT', capabilitySet: 'advanced' } };
     await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
       method: 'POST',
-      body: JSON.stringify({ clientId: connection.clientId, siteUrl: connection.siteUrl, cloudId: connection.cloudId, installationAri: connection.installationAri, forgeEnvironmentId: connection.environmentId, instantSyncUrl: connection.instantSyncUrl, license: connection.license }),
+      body: JSON.stringify({ clientId: connection.clientId, siteUrl: connection.siteUrl, cloudId: connection.cloudId, installationAri: connection.installationAri, forgeEnvironmentId: connection.environmentId, instantSyncUrl: connection.instantSyncUrl, instantSyncSecret: instantSyncSecret(token), license: connection.license }),
     });
     await kvs.set(CONFIG_KEY, connection);
   }
@@ -139,7 +141,7 @@ resolver.define('getConnection', async (request) => {
     connection = { ...connection, instantSyncUrl };
     const registration = await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
       method: 'POST',
-      body: JSON.stringify({ clientId: connection.clientId, siteUrl: connection.siteUrl, cloudId: connection.cloudId, installationAri: connection.installationAri, forgeEnvironmentId: connection.environmentId, instantSyncUrl, license: connection.license }),
+      body: JSON.stringify({ clientId: connection.clientId, siteUrl: connection.siteUrl, cloudId: connection.cloudId, installationAri: connection.installationAri, forgeEnvironmentId: connection.environmentId, instantSyncUrl, instantSyncSecret: instantSyncSecret(token), license: connection.license }),
     });
     const registered = await registration.json();
     connection = { ...connection, clientId: registered.clientId || connection.clientId };
@@ -180,6 +182,7 @@ resolver.define('saveConnection', async (request) => {
       installationAri: site.installationAri,
       forgeEnvironmentId: site.environmentId,
       instantSyncUrl,
+      instantSyncSecret: instantSyncSecret(token),
       license: site.license,
     }),
   });
