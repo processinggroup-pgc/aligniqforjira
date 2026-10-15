@@ -1,5 +1,6 @@
 import api, { fetch, route } from '@forge/api';
 import { kvs } from '@forge/kvs';
+import { syncApprovedTeamBoard } from './team-board-sync';
 import { discoverPlanningFields, jiraIssue } from './sync';
 
 const CONFIG_KEY = 'planforge-connection';
@@ -235,6 +236,7 @@ export const run = async () => {
     `/api/integrations/jira/commands?clientId=${encodeURIComponent(connection.clientId)}`,
   );
   const body = await response.json();
+  if(connection.clientId==='todyl'){try{await syncApprovedTeamBoard(connection,token,body.teamBoardSync)}catch(error){console.error('Approved Jira team board import will retry',error)}}
   const commands = body.commands || [];
   for (const command of commands) {
     try {
