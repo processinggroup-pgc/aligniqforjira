@@ -1,0 +1,85 @@
+modules:
+  jira:globalPage:
+    - key: aligniq-uat-global-page
+      resource: admin
+      resolver:
+        function: resolver
+      render: native
+      title: AlignIQ UAT
+  jira:issuePanel:
+    - key: aligniq-uat-dependencies-issue-panel
+      resource: main
+      render: native
+      title: AlignIQ UAT dependencies
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  jira:adminPage:
+    - key: aligniq-uat-settings-admin-page
+      resource: admin
+      resolver:
+        function: resolver
+      render: native
+      title: AlignIQ UAT settings
+  trigger:
+    - key: aligniq-uat-issue-link-sync-trigger
+      function: issue-link-sync
+      events:
+        - avi:jira:created:issuelink
+        - avi:jira:deleted:issuelink
+        - avi:jira:updated:issue
+  scheduledTrigger:
+    - key: aligniq-uat-command-dispatch
+      function: command-dispatch
+      interval: fiveMinute
+  webtrigger:
+    - key: aligniq-uat-instant-sync
+      function: instant-sync
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: issue-link-sync
+      handler: sync.run
+    - key: command-dispatch
+      handler: reconcile.run
+      timeoutSeconds: 120
+    - key: instant-sync
+      handler: refresh.run
+resources:
+  - key: main
+    path: src/frontend/index.jsx
+  - key: admin
+    path: src/admin/index.jsx
+permissions:
+  scopes:
+    - read:jira-work
+    - read:jira-user
+    - write:jira-work
+    - read:board-scope:jira-software
+    - read:project:jira
+    - read:sprint:jira-software
+    - read:issue-details:jira
+    - read:jql:jira
+    - storage:app
+  external:
+    fetch:
+      backend:
+        - remote: aligniq-api
+        - remote: planforge-api-legacy
+remotes:
+  - key: aligniq-api
+    baseUrl: https://aligniq-velopde.vercel.app
+    operations:
+      - storage
+    storage:
+      inScopeEUD: true
+  - key: planforge-api-legacy
+    baseUrl: https://planforge-velopde.vercel.app
+    operations:
+      - storage
+    storage:
+      inScopeEUD: true
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/d9a71106-c692-42bb-a389-b77b8edc2c07

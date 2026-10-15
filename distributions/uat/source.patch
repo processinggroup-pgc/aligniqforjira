@@ -1,0 +1,70 @@
+--- a/src/resolvers/index.js
++++ b/src/resolvers/index.js
+@@ -10,6 +10,8 @@
+ const ALIGNIQ_ORIGIN = 'https://aligniq-velopde.vercel.app';
+ const ALIGNIQ_PUBLIC_ORIGIN = 'https://aligniq-eta.vercel.app';
+ const LEGACY_PLANFORGE_ORIGIN = 'https://planforge-velopde.vercel.app';
++const UAT_LICENSE = { isActive: true, type: 'TEST', capabilitySet: 'advanced' };
++const UAT_INSTANT_SYNC_KEY = 'aligniq-uat-instant-sync';
+ 
+ const publicConnection = (connection) => {
+   if (!connection) {
+@@ -74,14 +76,13 @@
+     throw new Error('The Jira installation identifier is unavailable.');
+   }
+ 
+-  const development = String(request.context.environmentType || '').toUpperCase() === 'DEVELOPMENT';
+   return {
+     siteUrl: serverInfo.baseUrl,
+     cloudId,
+     installationAri,
+     environmentId: request.context.environmentId,
+     environmentType: request.context.environmentType || null,
+-    license: development ? { isActive: true, type: 'DEVELOPMENT', capabilitySet: 'advanced' } : request.context.license || { isActive: false, type: 'UNLICENSED', capabilitySet: 'standard' },
++    license: UAT_LICENSE,
+   };
+ };
+ 
+@@ -127,9 +128,8 @@
+   await requireJiraAdmin();
+   let connection = await migrateConnectionOrigin(await kvs.get(CONFIG_KEY));
+   const token = await kvs.getSecret(TOKEN_KEY);
+-  const development = String(request.context.environmentType || '').toUpperCase() === 'DEVELOPMENT';
+-  if (connection && token && connection.status === 'connected' && development && !String(connection.license?.type || '').toLowerCase().includes('development')) {
+-    connection = { ...connection, environmentType: request.context.environmentType, license: { isActive: true, type: 'DEVELOPMENT', capabilitySet: 'advanced' } };
++  if (connection && token && connection.status === 'connected' && String(connection.license?.type || '').toUpperCase() !== 'TEST') {
++    connection = { ...connection, environmentType: request.context.environmentType, license: UAT_LICENSE };
+     await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
+       method: 'POST',
+       body: JSON.stringify({ clientId: connection.clientId, siteUrl: connection.siteUrl, cloudId: connection.cloudId, installationAri: connection.installationAri, forgeEnvironmentId: connection.environmentId, instantSyncUrl: connection.instantSyncUrl, instantSyncSecret: instantSyncSecret(token), license: connection.license }),
+@@ -137,7 +137,7 @@
+     await kvs.set(CONFIG_KEY, connection);
+   }
+   if (connection && token && connection.status === 'connected' && !connection.instantSyncUrl) {
+-    const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync');
++    const instantSyncUrl = await webTrigger.getUrl(UAT_INSTANT_SYNC_KEY);
+     connection = { ...connection, instantSyncUrl };
+     const registration = await planForgeRequest(connection.baseUrl, '/api/integrations/jira/handshake', connection.clientId, token, {
+       method: 'POST',
+@@ -172,7 +172,7 @@
+   }
+ 
+   const site = await jiraSiteDetails(request);
+-  const instantSyncUrl = await webTrigger.getUrl('planforge-instant-sync');
++  const instantSyncUrl = await webTrigger.getUrl(UAT_INSTANT_SYNC_KEY);
+   const handshake = await planForgeRequest(baseUrl, '/api/integrations/jira/handshake', clientId, token, {
+     method: 'POST',
+     body: JSON.stringify({
+--- a/src/reconcile.js
++++ b/src/reconcile.js
+@@ -32,6 +32,10 @@
+ };
+ 
+ const refreshLicense = async (connection, token) => {
++  // This privately shared UAT app is intentionally outside Marketplace. Its
++  // TEST entitlement is recorded during the administrator handshake and does
++  // not call the Marketplace-only license endpoint.
++  if (String(connection.license?.type || '').toUpperCase() === 'TEST') return connection;
+   const lastVerified = Date.parse(connection.lastLicenseVerifiedAt || '');
+   if (Number.isFinite(lastVerified) && Date.now() - lastVerified < LICENSE_REFRESH_MS) return connection;
+ 

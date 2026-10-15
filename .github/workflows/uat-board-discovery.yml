@@ -1,0 +1,37 @@
+name: Deploy private UAT board discovery
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: private-uat-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+      FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run lint
+      - run: npm test
+      - name: Apply private UAT distribution
+        run: |
+          git apply distributions/uat/source.patch
+          cp distributions/uat/manifest.yml manifest.yml
+          node -e "const fs=require('node:fs');const text=fs.readFileSync('manifest.yml','utf8');if(!text.includes('d9a71106-c692-42bb-a389-b77b8edc2c07')||text.includes('licensing:'))throw new Error('Unexpected UAT distribution');"
+      - run: npm install --global @forge/cli@13.3.0
+      - run: forge settings set usage-analytics false
+      - run: forge lint
+      - name: Deploy private UAT app used by Todyl
+        run: forge deploy --non-interactive --environment production
+      - name: Record private UAT installations
+        run: forge install list --json
