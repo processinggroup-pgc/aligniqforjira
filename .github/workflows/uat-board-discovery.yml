@@ -1,13 +1,38 @@
 name: Deploy private UAT board discovery
 on:
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Deploy the private app or read its recent runtime logs
+        type: choice
+        default: deploy
+        options:
+          - deploy
+          - logs
 permissions:
   contents: read
 concurrency:
   group: private-uat-deploy
   cancel-in-progress: false
 jobs:
+  logs:
+    if: inputs.operation == 'logs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+      FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+      - run: cp distributions/uat/manifest.yml manifest.yml
+      - run: npm install --global @forge/cli@13.3.0
+      - run: forge settings set usage-analytics false
+      - run: forge logs --environment production --since 15m --limit 100
   deploy:
+    if: inputs.operation != 'logs'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
