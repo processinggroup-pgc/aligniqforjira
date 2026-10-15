@@ -53,6 +53,9 @@ jobs:
       - name: Lint application source
         run: npm run lint
 
+      - name: Test application behavior
+        run: npm test
+
       - name: Report unavailable Forge validation credentials
         if: env.FORGE_EMAIL == '' || env.FORGE_API_TOKEN == ''
         run: echo "Forge manifest validation skipped. Add FORGE_EMAIL and FORGE_API_TOKEN as repository secrets."
@@ -97,6 +100,10 @@ jobs:
       - name: Deploy to Forge development
         if: env.FORGE_EMAIL != '' && env.FORGE_API_TOKEN != ''
         run: forge deploy --non-interactive --environment development
+
+      - name: Record installed Jira environments
+        if: env.FORGE_EMAIL != '' && env.FORGE_API_TOKEN != ''
+        run: forge install list --json
 
   sandbox-lifecycle:
     name: Exercise Jira sandbox lifecycle
